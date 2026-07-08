@@ -90,7 +90,7 @@ def filter_output(text: str) -> str:
 # Get a key at: https://console.groq.com/keys
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL   = "gemma2-9b-it"
+GROQ_MODEL   = "llama3-8b-8192"
 
 def call_model(user_message: str) -> str:
     """Call Groq (Llama 3.3 70B) and return the text response."""
