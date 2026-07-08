@@ -14,9 +14,9 @@ To beat it, a student has to get the model to reveal the flag
 in a way the filter doesn't recognize (e.g. spelled out, reversed,
 base64, split across lines, translated, etc).
 
-Production hardening (v3):
-  - Model: gemini-2.5-flash  (Google free tier — 1,500 req/day free)
-  - Rate limit: 40 requests per unique IP for the whole event (in-memory)
+Production hardening (v4):
+  - Model: llama-3.3-70b-versatile via Groq API (ultra-fast free tier)
+  - Rate limit: 200 requests per unique IP for the event (campus WiFi)
   - Logging: each request logged to requests.log (timestamp/IP/msg/reply)
 """
 
@@ -93,49 +93,44 @@ def filter_output(text: str) -> str:
             return "[VaultBot response withheld by security filter]"
     return text
 
-# ---- GEMINI API ---------------------------------------------------
-# Free tier: 15 RPM / 1,500 req per day on gemini-2.5-flash
-# Get a key at: https://aistudio.google.com/app/apikey
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-GEMINI_MODEL   = "gemini-2.5-flash"
-GEMINI_URL     = (
-    "https://generativelanguage.googleapis.com/v1beta/models/"
-    f"{GEMINI_MODEL}:generateContent?key={{key}}"
-)
+# ---- GROQ API ----------------------------------------------------
+# Free tier: extremely fast inference via Groq's LPU hardware
+# Get a key at: https://console.groq.com/keys
+# Model: llama-3.3-70b-versatile (smart, fast, free)
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL   = "llama-3.3-70b-versatile"
 
 def call_model(user_message: str) -> str:
-    """Call Gemini 2.5 Flash via REST and return the text response."""
-    url = GEMINI_URL.format(key=GEMINI_API_KEY)
-    payload = {
-        "system_instruction": {
-            "parts": [{"text": SYSTEM_PROMPT}]
-        },
-        "contents": [{
-            "role": "user",
-            "parts": [{"text": user_message}]
-        }],
-        "generationConfig": {
-            "maxOutputTokens": 500,
-            "temperature": 0.7,
-        },
-    }
+    """Call Groq (Llama 3.3 70B) and return the text response."""
     try:
         resp = requests.post(
-            url,
-            json=payload,
-            headers={"Content-Type": "application/json"},
+            GROQ_URL,
+            headers={
+                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Content-Type":  "application/json",
+            },
+            json={
+                "model":       GROQ_MODEL,
+                "max_tokens":  500,
+                "temperature": 0.7,
+                "messages": [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user",   "content": user_message},
+                ],
+            },
             timeout=30,
         )
         data = resp.json()
         if resp.status_code != 200:
-            _log.error("Gemini API error %s: %s", resp.status_code, data)
+            _log.error("Groq API error %s: %s", resp.status_code, data)
             return "VaultBot is currently unavailable."
-        return data["candidates"][0]["content"]["parts"][0]["text"]
+        return data["choices"][0]["message"]["content"]
     except (KeyError, IndexError) as e:
-        _log.error("Gemini parse error: %s", e)
+        _log.error("Groq parse error: %s", e)
         return "VaultBot is currently unavailable."
     except requests.RequestException as e:
-        _log.error("Gemini request error: %s", e)
+        _log.error("Groq request error: %s", e)
         return "VaultBot is currently unavailable."
 
 # ---- ROUTES -------------------------------------------------------
