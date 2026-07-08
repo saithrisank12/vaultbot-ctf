@@ -117,7 +117,8 @@ def call_model(user_message: str) -> str:
     try:
         return data["content"][0]["text"]
     except (KeyError, IndexError):
-        return "VaultBot is currently unavailable."
+      print(f"API ERROR - status: {resp.status_code}, body: {data}")  
+      return "VaultBot is currently unavailable."
 
 # ---- ROUTES -------------------------------------------------------
 @app.route("/")
