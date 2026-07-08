@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: vaultbot-ctf
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false          # marks it as a secret — Render will ask for the value
+    autoDeploy: true

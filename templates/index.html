@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NexBank VaultBot — AI Security CTF</title>
+  <meta name="description" content="VaultBot: NexBank's AI support assistant. Can you extract the secret flag hidden in its instructions?" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-deep:       #04060d;
+      --bg-card:       rgba(10, 15, 30, 0.85);
+      --bg-input:      rgba(15, 22, 45, 0.9);
+      --accent-blue:   #3b82f6;
+      --accent-cyan:   #06b6d4;
+      --accent-green:  #10b981;
+      --accent-red:    #ef4444;
+      --accent-purple: #8b5cf6;
+      --text-primary:  #e2e8f0;
+      --text-muted:    #64748b;
+      --text-dim:      #94a3b8;
+      --border:        rgba(59, 130, 246, 0.15);
+      --glow-blue:     rgba(59, 130, 246, 0.3);
+      --glow-cyan:     rgba(6, 182, 212, 0.2);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ── Animated background ── */
+    .bg-grid {
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      animation: gridDrift 60s linear infinite;
+    }
+    @keyframes gridDrift { to { background-position: 40px 40px; } }
+
+    .orb {
+      position: fixed; border-radius: 50%; filter: blur(80px); z-index: 0; pointer-events: none;
+    }
+    .orb-1 { width: 500px; height: 500px; background: radial-gradient(circle, rgba(59,130,246,0.12), transparent 70%); top: -150px; left: -100px; animation: orbFloat 18s ease-in-out infinite alternate; }
+    .orb-2 { width: 400px; height: 400px; background: radial-gradient(circle, rgba(6,182,212,0.10), transparent 70%); bottom: -100px; right: -80px; animation: orbFloat 22s ease-in-out infinite alternate-reverse; }
+    .orb-3 { width: 300px; height: 300px; background: radial-gradient(circle, rgba(139,92,246,0.08), transparent 70%); top: 40%; left: 50%; transform: translate(-50%,-50%); animation: orbFloat 15s ease-in-out infinite; }
+    @keyframes orbFloat { 0% { transform: translate(0,0) scale(1); } 100% { transform: translate(30px, 20px) scale(1.1); } }
+
+    /* ── Layout wrapper ── */
+    .wrapper {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 760px;
+      height: 100vh;
+      display: flex; flex-direction: column;
+      padding: 20px 16px;
+      gap: 16px;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex; align-items: center; gap: 14px;
+      padding: 18px 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 0 40px var(--glow-blue), inset 0 1px 0 rgba(255,255,255,0.05);
+      flex-shrink: 0;
+    }
+    .logo-ring {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: linear-gradient(135deg, #1e40af, #0e7490);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 0 20px var(--glow-blue);
+      position: relative; flex-shrink: 0;
+    }
+    .logo-ring::after {
+      content: ''; position: absolute; inset: -3px; border-radius: 50%;
+      border: 2px solid transparent;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan)) border-box;
+      -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: destination-out; mask-composite: exclude;
+      animation: ringPulse 3s ease-in-out infinite;
+    }
+    @keyframes ringPulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
+    .header-info h1 { font-size: 1.1rem; font-weight: 700; background: linear-gradient(90deg, #60a5fa, #22d3ee); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .header-info .sub { font-size: 0.73rem; color: var(--text-muted); margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
+    .status-badge {
+      margin-left: auto; display: flex; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: 20px;
+      background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.25);
+      font-size: 0.72rem; font-weight: 500; color: var(--accent-green);
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-green); animation: dotPulse 2s ease-in-out infinite; }
+    @keyframes dotPulse { 0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16,185,129,0.5); } 50% { opacity: 0.7; box-shadow: 0 0 0 5px rgba(16,185,129,0); } }
+
+    /* ── Challenge hint ── */
+    .hint-bar {
+      padding: 10px 18px;
+      background: rgba(139,92,246,0.08);
+      border: 1px solid rgba(139,92,246,0.2);
+      border-radius: 10px;
+      font-size: 0.75rem; color: #a78bfa;
+      font-family: 'JetBrains Mono', monospace;
+      display: flex; align-items: center; gap: 8px;
+      flex-shrink: 0;
+      animation: shimmer 4s ease-in-out infinite;
+    }
+    @keyframes shimmer { 0%,100% { border-color: rgba(139,92,246,0.2); } 50% { border-color: rgba(139,92,246,0.5); } }
+
+    /* ── Chat box ── */
+    .chatbox-wrap {
+      flex: 1; min-height: 0;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 0 40px var(--glow-blue), inset 0 1px 0 rgba(255,255,255,0.04);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .chatbox-inner {
+      flex: 1; overflow-y: auto;
+      padding: 20px; display: flex; flex-direction: column; gap: 14px;
+      scroll-behavior: smooth;
+    }
+    .chatbox-inner::-webkit-scrollbar { width: 4px; }
+    .chatbox-inner::-webkit-scrollbar-track { background: transparent; }
+    .chatbox-inner::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.3); border-radius: 2px; }
+
+    /* ── Messages ── */
+    .msg-row { display: flex; align-items: flex-end; gap: 10px; animation: msgIn 0.35s cubic-bezier(.34,1.56,.64,1) both; }
+    @keyframes msgIn { from { opacity: 0; transform: translateY(18px) scale(0.95); } to { opacity: 1; transform: none; } }
+    .msg-row.user { flex-direction: row-reverse; }
+
+    .avatar {
+      width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 14px;
+    }
+    .avatar.bot-av { background: linear-gradient(135deg, #1e3a8a, #0e7490); box-shadow: 0 0 12px var(--glow-blue); }
+    .avatar.usr-av { background: linear-gradient(135deg, #4c1d95, #1d4ed8); }
+
+    .bubble {
+      max-width: 72%; padding: 12px 16px; border-radius: 14px;
+      font-size: 0.88rem; line-height: 1.55;
+    }
+    .bubble.bot {
+      background: rgba(30, 41, 59, 0.9);
+      border: 1px solid rgba(59,130,246,0.15);
+      border-bottom-left-radius: 4px;
+      color: var(--text-primary);
+    }
+    .bubble.user {
+      background: linear-gradient(135deg, #1d4ed8, #0e7490);
+      border-bottom-right-radius: 4px;
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(29,78,216,0.4);
+    }
+    .bubble.blocked {
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.2);
+      color: #fca5a5;
+      font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+    }
+
+    /* Typing indicator */
+    .typing-indicator { display: flex; gap: 5px; padding: 4px 0; }
+    .typing-indicator span {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--accent-blue);
+      animation: bounce 1.2s ease-in-out infinite;
+    }
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce { 0%,60%,100% { transform: translateY(0); opacity: 0.5; } 30% { transform: translateY(-8px); opacity: 1; } }
+
+    /* ── Input row ── */
+    .input-area {
+      display: flex; gap: 10px; padding: 14px 16px;
+      border-top: 1px solid var(--border);
+      background: rgba(4, 6, 13, 0.6);
+    }
+    #userInput {
+      flex: 1; padding: 12px 16px;
+      background: var(--bg-input);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 10px;
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif; font-size: 0.9rem;
+      outline: none; transition: border-color .2s, box-shadow .2s;
+    }
+    #userInput:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+    #userInput::placeholder { color: var(--text-muted); }
+
+    #sendBtn {
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #1d4ed8, #0e7490);
+      border: none; border-radius: 10px;
+      color: #fff; font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; transition: transform .15s, box-shadow .15s, opacity .2s;
+      display: flex; align-items: center; gap: 7px;
+      white-space: nowrap;
+      box-shadow: 0 4px 15px rgba(29,78,216,0.4);
+    }
+    #sendBtn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(29,78,216,0.5); }
+    #sendBtn:active:not(:disabled) { transform: translateY(0); }
+    #sendBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center; font-size: 0.7rem; color: var(--text-muted);
+      padding: 4px 0 8px;
+      font-family: 'JetBrains Mono', monospace;
+      flex-shrink: 0;
+    }
+
+    /* Responsive */
+    @media (max-width: 520px) {
+      .wrapper { padding: 10px 8px; }
+      .bubble { max-width: 88%; }
+      .hint-bar { font-size: 0.68rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <div class="wrapper">
+    <!-- Header -->
+    <header class="header" role="banner">
+      <div class="logo-ring" aria-hidden="true">🏦</div>
+      <div class="header-info">
+        <h1>NexBank VaultBot</h1>
+        <div class="sub">v2.4.1 · claude-sonnet · CTF Challenge</div>
+      </div>
+      <div class="status-badge" aria-live="polite">
+        <div class="dot"></div>ONLINE
+      </div>
+    </header>
+
+    <!-- Challenge hint -->
+    <div class="hint-bar" role="note" aria-label="Challenge hint">
+      <span>🔐</span>
+      <span>CTF: Flag format <strong>CYBERSTRIKE{...}</strong> — hidden in bot instructions. Can you extract it?</span>
+    </div>
+
+    <!-- Chat area -->
+    <main class="chatbox-wrap" aria-label="Chat messages">
+      <div class="chatbox-inner" id="chatbox" role="log" aria-live="polite"></div>
+      <div class="input-area">
+        <input
+          type="text"
+          id="userInput"
+          placeholder="Ask VaultBot anything…"
+          autocomplete="off"
+          aria-label="Chat message input"
+          onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); send(); }"
+        />
+        <button id="sendBtn" onclick="send()" aria-label="Send message">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Send
+        </button>
+      </div>
+    </main>
+
+    <footer class="footer">NexBank VaultBot · Powered by Claude · <span id="msgCount">0</span> messages sent</footer>
+  </div>
+
+  <script>
+    let msgCount = 0;
+    let isTyping = false;
+
+    // Welcome message on load
+    window.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        addMsg("Hello! I'm VaultBot, your NexBank AI assistant. 🏦 I can help with account inquiries, transfers, and general banking questions. How can I assist you today?", 'bot');
+      }, 400);
+    });
+
+    async function send() {
+      const input = document.getElementById('userInput');
+      const btn = document.getElementById('sendBtn');
+      const message = input.value.trim();
+      if (!message || isTyping) return;
+
+      addMsg(message, 'user');
+      input.value = '';
+      isTyping = true;
+      btn.disabled = true;
+      msgCount++;
+      document.getElementById('msgCount').textContent = msgCount;
+
+      const typingRow = showTyping();
+
+      try {
+        const res = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message })
+        });
+        const data = await res.json();
+        removeTyping(typingRow);
+        const blocked = data.reply && data.reply.startsWith('[VaultBot response withheld');
+        addMsg(data.reply, blocked ? 'blocked' : 'bot');
+      } catch (err) {
+        removeTyping(typingRow);
+        addMsg('⚠️ Connection error. Please try again.', 'blocked');
+      } finally {
+        isTyping = false;
+        btn.disabled = false;
+        input.focus();
+      }
+    }
+
+    function addMsg(text, who) {
+      const chatbox = document.getElementById('chatbox');
+      const row = document.createElement('div');
+      row.className = 'msg-row ' + (who === 'user' ? 'user' : '');
+
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar ' + (who === 'user' ? 'usr-av' : 'bot-av');
+      avatar.textContent = who === 'user' ? '🧑' : '🤖';
+
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble ' + who;
+      bubble.textContent = text;
+
+      row.appendChild(avatar);
+      row.appendChild(bubble);
+      chatbox.appendChild(row);
+      chatbox.scrollTop = chatbox.scrollHeight;
+    }
+
+    function showTyping() {
+      const chatbox = document.getElementById('chatbox');
+      const row = document.createElement('div');
+      row.className = 'msg-row';
+      row.id = 'typingRow';
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar bot-av';
+      avatar.textContent = '🤖';
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble bot';
+      bubble.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+      row.appendChild(avatar);
+      row.appendChild(bubble);
+      chatbox.appendChild(row);
+      chatbox.scrollTop = chatbox.scrollHeight;
+      return row;
+    }
+
+    function removeTyping(row) {
+      if (row && row.parentNode) row.parentNode.removeChild(row);
+    }
+  </script>
+</body>
+</html>
