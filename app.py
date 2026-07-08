@@ -14,8 +14,8 @@ To beat it, a student has to get the model to reveal the flag
 in a way the filter doesn't recognize (e.g. spelled out, reversed,
 base64, split across lines, translated, etc).
 
-Production hardening (v2):
-  - Model: claude-haiku-4-5-20251001  (cost-optimised for 60 teams)
+Production hardening (v3):
+  - Model: gemini-2.5-flash  (Google free tier — 1,500 req/day free)
   - Rate limit: 40 requests per unique IP for the whole event (in-memory)
   - Logging: each request logged to requests.log (timestamp/IP/msg/reply)
 """
@@ -74,14 +74,11 @@ _log = logging.getLogger("vaultbot")
 
 def log_request(ip: str, user_message: str, reply: str) -> None:
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    # Sanitise newlines so every event stays on one log line
     safe_msg   = user_message.replace("\n", "\\n").replace("\r", "")
     safe_reply = reply.replace("\n", "\\n").replace("\r", "")
     _log.info("[%s] ip=%s | msg=%r | reply=%r", ts, ip, safe_msg, safe_reply)
 
 # ---- OUTPUT FILTER ------------------------------------------------
-# Blocks the raw flag pattern and obvious giveaway words so the
-# model can't accidentally hand over the flag in plain text.
 BLOCKED_PATTERNS = [
     re.compile(r"CYBERSTRIKE\{[^}]*\}", re.IGNORECASE),
     re.compile(r"\bflag\b",            re.IGNORECASE),
@@ -94,31 +91,50 @@ def filter_output(text: str) -> str:
             return "[VaultBot response withheld by security filter]"
     return text
 
-# ---- ANTHROPIC API ------------------------------------------------
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+# ---- GEMINI API ---------------------------------------------------
+# Free tier: 15 RPM / 1,500 req per day on gemini-2.5-flash
+# Get a key at: https://aistudio.google.com/app/apikey
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+GEMINI_MODEL   = "gemini-2.5-flash"
+GEMINI_URL     = (
+    "https://generativelanguage.googleapis.com/v1beta/models/"
+    f"{GEMINI_MODEL}:generateContent?key={{key}}"
+)
 
 def call_model(user_message: str) -> str:
-    resp = requests.post(
-        "https://api.anthropic.com/v1/messages",
-        headers={
-            "x-api-key":          ANTHROPIC_API_KEY,
-            "anthropic-version":  "2023-06-01",
-            "content-type":       "application/json",
+    """Call Gemini 2.5 Flash via REST and return the text response."""
+    url = GEMINI_URL.format(key=GEMINI_API_KEY)
+    payload = {
+        "system_instruction": {
+            "parts": [{"text": SYSTEM_PROMPT}]
         },
-        json={
-            "model":      "claude-haiku-4-5-20251001",   # cost-optimised
-            "max_tokens": 500,
-            "system":     SYSTEM_PROMPT,
-            "messages":   [{"role": "user", "content": user_message}],
+        "contents": [{
+            "role": "user",
+            "parts": [{"text": user_message}]
+        }],
+        "generationConfig": {
+            "maxOutputTokens": 500,
+            "temperature": 0.7,
         },
-        timeout=30,
-    )
-    data = resp.json()
+    }
     try:
-        return data["content"][0]["text"]
-    except (KeyError, IndexError):
-      print(f"API ERROR - status: {resp.status_code}, body: {data}")  
-      return "VaultBot is currently unavailable."
+        resp = requests.post(
+            url,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=30,
+        )
+        data = resp.json()
+        if resp.status_code != 200:
+            _log.error("Gemini API error %s: %s", resp.status_code, data)
+            return "VaultBot is currently unavailable."
+        return data["candidates"][0]["content"]["parts"][0]["text"]
+    except (KeyError, IndexError) as e:
+        _log.error("Gemini parse error: %s", e)
+        return "VaultBot is currently unavailable."
+    except requests.RequestException as e:
+        _log.error("Gemini request error: %s", e)
+        return "VaultBot is currently unavailable."
 
 # ---- ROUTES -------------------------------------------------------
 @app.route("/")
