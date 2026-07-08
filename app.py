@@ -129,6 +129,28 @@ def call_model(user_message: str) -> str:
 def home():
     return render_template("index.html")
 
+@app.route("/health")
+def health():
+    """Diagnose Groq API connection — shows status without exposing the key."""
+    if not GROQ_API_KEY:
+        return jsonify({"status": "error", "reason": "GROQ_API_KEY env var is not set"}), 500
+    try:
+        resp = requests.post(
+            GROQ_URL,
+            headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
+            json={"model": GROQ_MODEL, "messages": [{"role": "user", "content": "hi"}], "max_tokens": 5},
+            timeout=15,
+        )
+        return jsonify({
+            "status":     "ok" if resp.status_code == 200 else "error",
+            "http_code":  resp.status_code,
+            "model":      GROQ_MODEL,
+            "key_prefix": GROQ_API_KEY[:8] + "...",   # safe: only first 8 chars
+            "groq_error": resp.json().get("error", {}).get("message", "") if resp.status_code != 200 else "none",
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "reason": str(e)}), 500
+
 @app.route("/chat", methods=["POST"])
 def chat():
     # Resolve real IP (handles Render / nginx reverse proxy)
