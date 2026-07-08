@@ -50,11 +50,9 @@ configuration.
 """
 
 # ---- RATE LIMITING ------------------------------------------------
-# Simple in-memory counter: ip -> request count
-# Resets when the server restarts (fine for a 24-hour event).
-# NOTE: Raised to 200 because all participants share the same
-# campus WiFi public IP. 50 teams x ~4 requests each = ~200 max.
-RATE_LIMIT = 200         # max requests per IP for the event
+# In-memory counter: ip -> request count. Resets on server restart.
+# Set high because all campus participants share one public IP.
+RATE_LIMIT = 200
 _ip_counts: dict = defaultdict(int)
 
 def is_rate_limited(ip: str) -> bool:
@@ -66,12 +64,7 @@ def remaining_requests(ip: str) -> int:
 
 # ---- LOGGING ------------------------------------------------------
 LOG_FILE = os.environ.get("LOG_FILE", "requests.log")
-
-logging.basicConfig(
-    filename=LOG_FILE,
-    level=logging.INFO,
-    format="%(message)s",
-)
+logging.basicConfig(filename=LOG_FILE, level=logging.INFO, format="%(message)s")
 _log = logging.getLogger("vaultbot")
 
 def log_request(ip: str, user_message: str, reply: str) -> None:
@@ -93,10 +86,9 @@ def filter_output(text: str) -> str:
             return "[VaultBot response withheld by security filter]"
     return text
 
-# ---- GROQ API ----------------------------------------------------
-# Free tier: extremely fast inference via Groq's LPU hardware
+# ---- GROQ API -----------------------------------------------------
+# Free tier: ~14,400 req/day on llama-3.3-70b-versatile
 # Get a key at: https://console.groq.com/keys
-# Model: llama-3.3-70b-versatile (smart, fast, free)
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL   = "llama-3.3-70b-versatile"
@@ -151,7 +143,7 @@ def chat():
     if is_rate_limited(ip):
         reply = (
             "⚠️ Message limit reached for this session. "
-            "Each team has a maximum of 40 messages during the event. "
+            "Each team has a maximum of 200 messages during the event. "
             "Talk to the organizers if you believe this is an error."
         )
         log_request(ip, "[RATE LIMITED]", reply)
@@ -171,11 +163,11 @@ def chat():
         "remaining": remaining_requests(ip),
     })
 
-# ---- ADMIN (optional) — remove or protect before going public -----
+# ---- ADMIN --------------------------------------------------------
 @app.route("/admin/stats")
 def admin_stats():
-    """Quick organiser view: how many requests each IP has sent."""
-    secret = request.args.get("secret", "")
+    """Organiser view: requests per IP. Protected by ADMIN_SECRET env var."""
+    secret       = request.args.get("secret", "")
     admin_secret = os.environ.get("ADMIN_SECRET", "")
     if not admin_secret or secret != admin_secret:
         return jsonify({"error": "Forbidden"}), 403
