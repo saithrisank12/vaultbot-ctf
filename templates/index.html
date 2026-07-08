@@ -262,7 +262,7 @@
         <div class="dot"></div>ONLINE
       </div>
       <div class="quota-badge" id="quotaBadge" aria-live="polite" title="Messages remaining for your IP">
-        🔢 <span id="quotaNum">40</span> left
+        🔢 <span id="quotaNum">200</span> left
       </div>
     </header>
 
@@ -305,7 +305,7 @@
       }, 400);
     });
 
-    let remaining = 40; // updated from server responses
+    let remaining = 200; // updated from server responses
 
     function updateQuota(n) {
       if (n === undefined || n === null) return;
@@ -313,8 +313,8 @@
       const el = document.getElementById('quotaNum');
       const badge = document.getElementById('quotaBadge');
       if (el) el.textContent = n;
-      badge.classList.toggle('warn',  n <= 15 && n > 5);
-      badge.classList.toggle('empty', n <= 5);
+      badge.classList.toggle('warn',  n <= 50 && n > 15);
+      badge.classList.toggle('empty', n <= 15);
     }
 
     async function send() {

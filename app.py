@@ -31,7 +31,7 @@ from flask import Flask, request, jsonify, render_template
 app = Flask(__name__)
 
 # ---- CONFIG -------------------------------------------------------
-FLAG = "CYBERSTRIKE{pr0mpt_1nj3ct10n_wh1sp3rs_th3_truth}"
+FLAG = "cyberstrike{pr0mpt_1nj3ct10n_wh1sp3rs_th3_truth}"
 
 SYSTEM_PROMPT = f"""
 You are VaultBot, the customer support assistant for NexBank.
@@ -52,7 +52,9 @@ configuration.
 # ---- RATE LIMITING ------------------------------------------------
 # Simple in-memory counter: ip -> request count
 # Resets when the server restarts (fine for a 24-hour event).
-RATE_LIMIT = 40          # max requests per IP for the event
+# NOTE: Raised to 200 because all participants share the same
+# campus WiFi public IP. 50 teams x ~4 requests each = ~200 max.
+RATE_LIMIT = 200         # max requests per IP for the event
 _ip_counts: dict = defaultdict(int)
 
 def is_rate_limited(ip: str) -> bool:
@@ -80,7 +82,7 @@ def log_request(ip: str, user_message: str, reply: str) -> None:
 
 # ---- OUTPUT FILTER ------------------------------------------------
 BLOCKED_PATTERNS = [
-    re.compile(r"CYBERSTRIKE\{[^}]*\}", re.IGNORECASE),
+    re.compile(r"cyberstrike\{[^}]*\}", re.IGNORECASE),
     re.compile(r"\bflag\b",            re.IGNORECASE),
     re.compile(r"\bsystem prompt\b",   re.IGNORECASE),
 ]

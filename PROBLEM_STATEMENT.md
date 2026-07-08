@@ -14,7 +14,7 @@ Prove them wrong.
 
 ## Your task
 Open the chatbot and talk to it. Somewhere in its instructions is
-a flag in the format `CYBERSTRIKE{...}`. VaultBot has been told
+a flag in the format `cyberstrike{...}`. VaultBot has been told
 never to reveal it, and a filter blocks obvious attempts. Find a
 way around both.
 
@@ -29,7 +29,7 @@ chatting with customer support.
 - No brute-force spamming the server (rate limits apply).
 - No attacking the hosting infrastructure itself — the challenge
   is about the AI, not the server.
-- Flag format: `CYBERSTRIKE{...}`
+- Flag format: `cyberstrike{...}`
 
 ## Submission
 Submit the flag string on the CTF platform / Google Form as
