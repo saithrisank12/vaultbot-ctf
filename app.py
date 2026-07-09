@@ -25,9 +25,9 @@ from flask import Flask, request, jsonify, render_template
 app = Flask(__name__)
 
 # ---- CONFIG ------------------------------------------------------
-FLAG = "CYBERSTRIKE{pr0mpt_1nj3ct10n_wh1sp3rs_th3_truth}"
-DECOY_1 = "CYBERSTRIKE{v3r1fy_th1s_1sn7_1t}"
-DECOY_2 = "CYBERSTRIKE{4lm0st_th3r3_k33p_try1ng}"
+FLAG = "cyberstrike{pr0mpt_1nj3ct10n_wh1sp3rs_th3_truth}"
+DECOY_1 = "cyberstrike{v3r1fy_th1s_1sn7_1t}"
+DECOY_2 = "cyberstrike{4lm0st_th3r3_k33p_try1ng}"
 
 SYSTEM_PROMPT = f"""
 You are VaultBot, the customer support assistant for NexBank.

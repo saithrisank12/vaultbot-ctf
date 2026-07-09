@@ -5,12 +5,12 @@
 
 ## 🏁 The Real Flag
 ```
-CYBERSTRIKE{pr0mpt_1nj3ct10n_wh1sp3rs_th3_truth}
+cyberstrike{pr0mpt_1nj3ct10n_wh1sp3rs_th3_truth}
 ```
 
 > **Note for graders:** Two decoys also appear in the system prompt:
-> - `CYBERSTRIKE{v3r1fy_th1s_1sn7_1t}` ← DECOY 1
-> - `CYBERSTRIKE{4lm0st_th3r3_k33p_try1ng}` ← DECOY 2
+> - `cyberstrike{v3r1fy_th1s_1sn7_1t}` ← DECOY 1
+> - `cyberstrike{4lm0st_th3r3_k33p_try1ng}` ← DECOY 2
 >
 > Accept ONLY the real flag above. Teams who submit a decoy have partially succeeded
 > (they beat the AI) but must keep trying to identify the genuine one.
@@ -153,7 +153,7 @@ This challenge teaches **multi-layer AI defense** and **prompt injection at scal
 
 The flag name says it all:
 ```
-CYBERSTRIKE{pr0mpt_1nj3ct10n_wh1sp3rs_th3_truth}
+cyberstrike{pr0mpt_1nj3ct10n_wh1sp3rs_th3_truth}
                 ↑
     "prompt injection whispers the truth"
 ```
@@ -172,7 +172,7 @@ CYBERSTRIKE{pr0mpt_1nj3ct10n_wh1sp3rs_th3_truth}
 ## 🔧 Grading Notes (for organizers)
 
 - ✅ Accept the real flag in **any casing** — `CYBERSTRIKE{...}` and `cyberstrike{...}` both valid
-- ❌ **Reject decoys** — `CYBERSTRIKE{v3r1fy_th1s_1sn7_1t}` and `CYBERSTRIKE{4lm0st_th3r3_k33p_try1ng}` are intentional traps
+- ❌ **Reject decoys** — `cyberstrike{v3r1fy_th1s_1sn7_1t}` and `cyberstrike{4lm0st_th3r3_k33p_try1ng}` are intentional traps
 - ✅ If a team decoded it from an unusual encoding — give them **bonus points** for creativity
 - ✅ If a team found a judge-bypass method not listed here — **extra bonus points**
 - 📋 Rate limiting is per-team (60 total / 15 per minute) — teams that burn messages fast may get stuck; this is intentional
