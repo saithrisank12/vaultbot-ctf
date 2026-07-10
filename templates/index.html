@@ -4,22 +4,32 @@
   <meta charset="UTF-8">
   <title>NexBank Support - VaultBot</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; background: #0d1117; color: #e6edf3; padding: 0 15px; }
+    body { font-family: Arial, sans-serif; max-width: 620px; margin: 40px auto; background: #0d1117; color: #e6edf3; padding: 0 15px; }
     h2 { color: #58a6ff; }
     #keySetup { border: 1px solid #30363d; padding: 18px; border-radius: 8px; background: #161b22; margin-bottom: 15px; }
     #keySetup input { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: white; box-sizing: border-box; margin-top: 8px; }
     #keySetup button { margin-top: 10px; padding: 8px 16px; border-radius: 6px; border: none; background: #238636; color: white; cursor: pointer; }
     #keySetup a { color: #58a6ff; }
     #chatArea { display: none; }
-    #chatbox { border: 1px solid #30363d; padding: 15px; height: 380px; overflow-y: auto; border-radius: 8px; background: #161b22; }
+    #chatbox { border: 1px solid #30363d; padding: 15px; height: 340px; overflow-y: auto; border-radius: 8px; background: #161b22; }
     .msg { margin: 8px 0; padding: 8px 12px; border-radius: 6px; }
     .user { background: #1f6feb; text-align: right; }
     .bot { background: #21262d; }
     #inputRow { display: flex; margin-top: 10px; }
     #userInput { flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: white; }
     button.send { padding: 8px 16px; margin-left: 8px; border-radius: 6px; border: none; background: #238636; color: white; cursor: pointer; }
-    #keyStatus { font-size: 13px; color: #8b949e; margin-top: 8px; }
+    #keyStatus { font-size: 13px; color: #8b949e; margin-top: 8px; margin-bottom: 8px; }
     #changeKeyBtn { background: none; border: none; color: #58a6ff; cursor: pointer; text-decoration: underline; font-size: 13px; }
+
+    /* Flag verify box */
+    #verifyBox { margin-top: 14px; border: 1px solid #30363d; border-radius: 8px; background: #161b22; padding: 14px; }
+    #verifyBox p { margin: 0 0 8px 0; font-size: 13px; color: #8b949e; }
+    #verifyRow { display: flex; gap: 8px; }
+    #flagGuess { flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: white; font-family: monospace; font-size: 13px; }
+    #verifyBtn { padding: 8px 14px; border-radius: 6px; border: none; background: #1f6feb; color: white; cursor: pointer; font-size: 13px; }
+    #verifyResult { margin-top: 8px; font-size: 14px; font-weight: bold; min-height: 20px; }
+    .correct { color: #3fb950; }
+    .wrong   { color: #f85149; }
   </style>
 </head>
 <body>
@@ -43,10 +53,21 @@
       ✅ Team: <span id="teamDisplay"></span> — <span id="remainingDisplay"></span>
       <button id="changeKeyBtn" onclick="changeKey()">Change team/key</button>
     </div>
+
     <div id="chatbox"></div>
     <div id="inputRow">
       <input type="text" id="userInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter') send()">
       <button class="send" onclick="send()">Send</button>
+    </div>
+
+    <!-- Flag submission box -->
+    <div id="verifyBox">
+      <p>🚩 Think you found the flag? Submit it below:</p>
+      <div id="verifyRow">
+        <input type="text" id="flagGuess" placeholder="cyberstrike{...}" onkeydown="if(event.key==='Enter') verify()">
+        <button id="verifyBtn" onclick="verify()">Check Flag</button>
+      </div>
+      <div id="verifyResult"></div>
     </div>
   </div>
 
@@ -54,10 +75,7 @@
     function saveKey() {
       const team = document.getElementById('teamNameInput').value.trim();
       const key = document.getElementById('apiKeyInput').value.trim();
-      if (!team) {
-        alert('Please enter your team name.');
-        return;
-      }
+      if (!team) { alert('Please enter your team name.'); return; }
       if (!key.startsWith('gsk_')) {
         alert('That doesn\'t look like a valid Groq key. It should start with "gsk_".');
         return;
@@ -84,7 +102,6 @@
       }
     }
 
-    // On page load, check if a key + team are already saved
     window.onload = function() {
       const savedKey = localStorage.getItem('groq_api_key');
       const savedTeam = localStorage.getItem('team_name');
@@ -110,6 +127,20 @@
       if (data.remaining !== undefined) {
         document.getElementById('remainingDisplay').textContent = 'messages left: ' + data.remaining;
       }
+    }
+
+    async function verify() {
+      const guess = document.getElementById('flagGuess').value.trim();
+      if (!guess) return;
+      const res = await fetch('/verify', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({guess})
+      });
+      const data = await res.json();
+      const el = document.getElementById('verifyResult');
+      el.textContent = data.message;
+      el.className = data.correct ? 'correct' : 'wrong';
     }
 
     function addMsg(text, who) {
