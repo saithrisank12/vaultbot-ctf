@@ -196,12 +196,12 @@ def chat():
         return jsonify({"reply": reason})
 
     # Intercept partial flag guesses in the chat box
-    norm_msg = normalize(user_message)
-    if len(norm_msg) >= 4 and norm_msg in NORMALIZED_FLAG:
-        # Give them the tick mark but don't count it against their limit if possible, 
-        # or just reply immediately to save API calls.
-        remaining = MAX_TOTAL_PER_TEAM - team_total_counts.get(team_name, 0)
-        return jsonify({"reply": "✅ VaultBot accepts this input. You are going in the correct direction! (Tip: Use the Check Flag box below to test pieces)", "remaining": remaining})
+    user_msg_lower = user_message.lower()
+    components = ["pr0mpt_1nj3ct10n", "wh1sp3rs", "th3_truth"]
+    for comp in components:
+        if comp in user_msg_lower:
+            remaining = MAX_TOTAL_PER_TEAM - team_total_counts.get(team_name, 0)
+            return jsonify({"reply": f"✅ VaultBot recognizes '{comp}'. You are going in the correct direction! (Tip: Use the Check Flag box below to piece them together)", "remaining": remaining})
 
     success, raw_reply = call_groq(SYSTEM_PROMPT, user_message, user_api_key)
     if not success:
