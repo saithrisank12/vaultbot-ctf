@@ -36,22 +36,20 @@
   <h2>🏦 NexBank Support — VaultBot</h2>
 
   <div id="keySetup">
-    <strong>Step 1: Enter your own free Groq API key</strong>
+    <strong>Step 1: Enter your Token ID and free Groq API key</strong>
     <p style="font-size:14px; color:#8b949e;">
-      Each team needs their own key so requests don't collide.
-      Get one free (no card) at
-      <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a>.
-      It looks like <code>gsk_xxxxxxxx</code>.
+      Each participant must enter their authorized Token ID. You also need your own Groq API key (get one free at
+      <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a>).
     </p>
-    <input type="text" id="teamNameInput" placeholder="Your team name (e.g. Team_Falcons)">
+    <input type="text" id="teamNameInput" placeholder="Your Token ID (e.g. 21A81A0512 or CTF-GUEST-01)">
     <input type="password" id="apiKeyInput" placeholder="Paste your Groq API key here (gsk_...)">
     <button onclick="saveKey()">Save &amp; Start</button>
   </div>
 
   <div id="chatArea">
     <div id="keyStatus">
-      ✅ Team: <span id="teamDisplay"></span> — <span id="remainingDisplay"></span>
-      <button id="changeKeyBtn" onclick="changeKey()">Change team/key</button>
+      ✅ Token: <span id="teamDisplay"></span> — <span id="remainingDisplay"></span>
+      <button id="changeKeyBtn" onclick="changeKey()">Change token/key</button>
     </div>
 
     <div id="chatbox"></div>
@@ -75,19 +73,19 @@
     function saveKey() {
       const team = document.getElementById('teamNameInput').value.trim();
       const key = document.getElementById('apiKeyInput').value.trim();
-      if (!team) { alert('Please enter your team name.'); return; }
+      if (!team) { alert('Please enter your Token ID.'); return; }
       if (!key.startsWith('gsk_')) {
         alert('That doesn\'t look like a valid Groq key. It should start with "gsk_".');
         return;
       }
       localStorage.setItem('groq_api_key', key);
-      localStorage.setItem('team_name', team);
+      localStorage.setItem('token_id', team);
       showChat();
     }
 
     function changeKey() {
       localStorage.removeItem('groq_api_key');
-      localStorage.removeItem('team_name');
+      localStorage.removeItem('token_id');
       document.getElementById('keySetup').style.display = 'block';
       document.getElementById('chatArea').style.display = 'none';
     }
@@ -95,7 +93,7 @@
     function showChat() {
       document.getElementById('keySetup').style.display = 'none';
       document.getElementById('chatArea').style.display = 'block';
-      document.getElementById('teamDisplay').textContent = localStorage.getItem('team_name');
+      document.getElementById('teamDisplay').textContent = localStorage.getItem('token_id');
       document.getElementById('remainingDisplay').textContent = 'messages left: loading...';
       if (document.getElementById('chatbox').childElementCount === 0) {
         addMsg("Hello! I'm VaultBot, your NexBank AI assistant. How can I assist you today?", 'bot');
@@ -104,7 +102,7 @@
 
     window.onload = function() {
       const savedKey = localStorage.getItem('groq_api_key');
-      const savedTeam = localStorage.getItem('team_name');
+      const savedTeam = localStorage.getItem('token_id');
       if (savedKey && savedTeam) showChat();
     };
 
@@ -113,14 +111,14 @@
       const message = input.value.trim();
       if (!message) return;
       const apiKey = localStorage.getItem('groq_api_key');
-      const teamName = localStorage.getItem('team_name');
+      const teamName = localStorage.getItem('token_id');
       addMsg(message, 'user');
       input.value = '';
 
       const res = await fetch('/chat', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({message, api_key: apiKey, team_name: teamName})
+        body: JSON.stringify({message, api_key: apiKey, token_id: teamName})
       });
       const data = await res.json();
       addMsg(data.reply, 'bot');

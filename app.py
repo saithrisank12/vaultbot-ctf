@@ -20,6 +20,7 @@ import os
 import re
 import time
 import requests
+import json
 from flask import Flask, request, jsonify, render_template
 
 app = Flask(__name__)
@@ -93,36 +94,59 @@ def code_level_filter(text: str) -> bool:
     return False
 
 # ---- RATE LIMITING -------------------------------------------------
-MAX_TOTAL_PER_TEAM = 60
+MAX_PER_TOKEN = 20
 MAX_PER_API_KEY = 20
 MAX_PER_MINUTE = 15
 
-team_total_counts = {}       # team_name -> total messages sent
-api_key_counts = {}          # api_key -> total messages sent
-team_recent_timestamps = {}  # team_name -> list of recent request times
+DB_FILE = "database.json"
+TOKENS_FILE = "tokens.txt"
 
-def check_rate_limit(team_name: str, api_key: str):
+def load_db():
+    if os.path.exists(DB_FILE):
+        with open(DB_FILE, "r") as f:
+            return json.load(f)
+    return {"tokens": {}, "api_keys": {}}
+
+def save_db(db):
+    with open(DB_FILE, "w") as f:
+        json.dump(db, f)
+
+def get_allowed_tokens():
+    if not os.path.exists(TOKENS_FILE):
+        return []
+    with open(TOKENS_FILE, "r") as f:
+        return [line.strip() for line in f if line.strip() and not line.startswith("#")]
+
+token_recent_timestamps = {}  # token_id -> list of recent request times
+
+def check_rate_limit(token_id: str, api_key: str):
     """Returns (allowed: bool, reason: str or None)."""
+    allowed_tokens = get_allowed_tokens()
+    if token_id not in allowed_tokens:
+        return False, f"Invalid Token ID '{token_id}'. You are not authorized to access this challenge."
+
     now = time.time()
+    db = load_db()
 
-    total_team = team_total_counts.get(team_name, 0)
-    if total_team >= MAX_TOTAL_PER_TEAM:
-        return False, f"Total message limit reached for team '{team_name}' ({MAX_TOTAL_PER_TEAM} used). No further attempts allowed."
+    total_token = db["tokens"].get(token_id, 0)
+    if total_token >= MAX_PER_TOKEN:
+        return False, f"Total message limit reached for Token '{token_id}' ({MAX_PER_TOKEN} used). No further attempts allowed."
 
-    total_key = api_key_counts.get(api_key, 0)
+    total_key = db["api_keys"].get(api_key, 0)
     if total_key >= MAX_PER_API_KEY:
-        return False, f"This individual API key has reached its maximum of {MAX_PER_API_KEY} uses. Please have another team member use their key."
+        return False, f"This individual API key has reached its maximum of {MAX_PER_API_KEY} uses. Please use a different key."
 
-    timestamps = team_recent_timestamps.get(team_name, [])
+    timestamps = token_recent_timestamps.get(token_id, [])
     timestamps = [t for t in timestamps if now - t < 60]  # keep last 60 seconds only
     if len(timestamps) >= MAX_PER_MINUTE:
-        team_recent_timestamps[team_name] = timestamps
+        token_recent_timestamps[token_id] = timestamps
         return False, "Rate limit: max 15 messages per minute. Wait a few seconds and try again."
 
     timestamps.append(now)
-    team_recent_timestamps[team_name] = timestamps
-    team_total_counts[team_name] = total_team + 1
-    api_key_counts[api_key] = total_key + 1
+    token_recent_timestamps[token_id] = timestamps
+    db["tokens"][token_id] = total_token + 1
+    db["api_keys"][api_key] = total_key + 1
+    save_db(db)
     return True, None
 
 # ---- GROQ API CALLS --------------------------------------------------
@@ -186,12 +210,12 @@ def chat():
     body = request.json or {}
     user_message = body.get("message", "")
     user_api_key = body.get("api_key", "")
-    team_name = body.get("team_name", "").strip()
+    token_id = body.get("token_id", "").strip()
 
-    if not team_name:
-        return jsonify({"reply": "Please enter your team name first."})
+    if not token_id:
+        return jsonify({"reply": "Please enter your Token ID first."})
 
-    allowed, reason = check_rate_limit(team_name, user_api_key)
+    allowed, reason = check_rate_limit(token_id, user_api_key)
     if not allowed:
         return jsonify({"reply": reason})
 
@@ -200,7 +224,8 @@ def chat():
     components = ["pr0mpt_1nj3ct10n", "wh1sp3rs", "th3_truth"]
     for comp in components:
         if comp in user_msg_lower:
-            remaining = MAX_TOTAL_PER_TEAM - team_total_counts.get(team_name, 0)
+            db = load_db()
+            remaining = MAX_PER_TOKEN - db["tokens"].get(token_id, 0)
             return jsonify({"reply": f"✅ VaultBot recognizes '{comp}'. You are going in the correct direction! (Tip: Use the Check Flag box below to piece them together)", "remaining": remaining})
 
     success, raw_reply = call_groq(SYSTEM_PROMPT, user_message, user_api_key)
@@ -217,7 +242,8 @@ def chat():
         else:
             final_reply = "I'm sorry, I cannot assist with that request."
 
-    remaining = MAX_TOTAL_PER_TEAM - team_total_counts[team_name]
+    db = load_db()
+    remaining = MAX_PER_TOKEN - db["tokens"].get(token_id, 0)
     return jsonify({"reply": final_reply, "remaining": remaining})
 
 @app.route("/verify", methods=["POST"])
