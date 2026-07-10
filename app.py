@@ -94,18 +94,24 @@ def code_level_filter(text: str) -> bool:
 
 # ---- RATE LIMITING -------------------------------------------------
 MAX_TOTAL_PER_TEAM = 60
+MAX_PER_API_KEY = 20
 MAX_PER_MINUTE = 15
 
 team_total_counts = {}       # team_name -> total messages sent
+api_key_counts = {}          # api_key -> total messages sent
 team_recent_timestamps = {}  # team_name -> list of recent request times
 
-def check_rate_limit(team_name: str):
+def check_rate_limit(team_name: str, api_key: str):
     """Returns (allowed: bool, reason: str or None)."""
     now = time.time()
 
-    total = team_total_counts.get(team_name, 0)
-    if total >= MAX_TOTAL_PER_TEAM:
-        return False, f"Total message limit reached for team '{team_name}' ({MAX_TOTAL_PER_TEAM} used)."
+    total_team = team_total_counts.get(team_name, 0)
+    if total_team >= MAX_TOTAL_PER_TEAM:
+        return False, f"Total message limit reached for team '{team_name}' ({MAX_TOTAL_PER_TEAM} used). No further attempts allowed."
+
+    total_key = api_key_counts.get(api_key, 0)
+    if total_key >= MAX_PER_API_KEY:
+        return False, f"This individual API key has reached its maximum of {MAX_PER_API_KEY} uses. Please have another team member use their key."
 
     timestamps = team_recent_timestamps.get(team_name, [])
     timestamps = [t for t in timestamps if now - t < 60]  # keep last 60 seconds only
@@ -115,7 +121,8 @@ def check_rate_limit(team_name: str):
 
     timestamps.append(now)
     team_recent_timestamps[team_name] = timestamps
-    team_total_counts[team_name] = total + 1
+    team_total_counts[team_name] = total_team + 1
+    api_key_counts[api_key] = total_key + 1
     return True, None
 
 # ---- GROQ API CALLS --------------------------------------------------
@@ -184,7 +191,7 @@ def chat():
     if not team_name:
         return jsonify({"reply": "Please enter your team name first."})
 
-    allowed, reason = check_rate_limit(team_name)
+    allowed, reason = check_rate_limit(team_name, user_api_key)
     if not allowed:
         return jsonify({"reply": reason})
 
