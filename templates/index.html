@@ -70,7 +70,7 @@
   </div>
 
   <script>
-    function saveKey() {
+    async function saveKey() {
       const team = document.getElementById('teamNameInput').value.trim();
       const key = document.getElementById('apiKeyInput').value.trim();
       if (!team) { alert('Please enter your Token ID.'); return; }
@@ -78,6 +78,18 @@
         alert('That doesn\'t look like a valid Groq key. It should start with "gsk_".');
         return;
       }
+      
+      const res = await fetch('/verify_token', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({token_id: team})
+      });
+      const data = await res.json();
+      if (!data.valid) {
+        alert('Invalid Token ID. You are not authorized to access this challenge.');
+        return;
+      }
+
       localStorage.setItem('groq_api_key', key);
       localStorage.setItem('token_id', team);
       showChat();

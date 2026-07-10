@@ -205,6 +205,16 @@ def moderate_reply(candidate_text: str, user_api_key: str) -> bool:
 def home():
     return render_template("index.html")
 
+@app.route("/verify_token", methods=["POST"])
+def verify_token():
+    body = request.json or {}
+    token_id = body.get("token_id", "").strip()
+    allowed_tokens = get_allowed_tokens()
+    
+    if token_id in allowed_tokens:
+        return jsonify({"valid": True})
+    return jsonify({"valid": False})
+
 @app.route("/chat", methods=["POST"])
 def chat():
     body = request.json or {}
