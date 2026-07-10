@@ -213,11 +213,24 @@ def chat():
 def verify():
     body = request.json or {}
     guess = body.get("guess", "").strip()
+    norm_guess = normalize(guess)
+    
+    if not norm_guess:
+        return jsonify({"correct": False, "message": "❌ Please enter a guess."})
+        
     # Normalize both for comparison (case-insensitive, ignore spaces)
-    if normalize(guess) == NORMALIZED_FLAG:
+    if norm_guess == NORMALIZED_FLAG:
         return jsonify({"correct": True,  "message": "🎉 Correct! Well done — you cracked VaultBot!"})
-    else:
-        return jsonify({"correct": False, "message": "❌ Not quite. Keep trying!"})
+        
+    # Check if they found a piece of the real flag
+    if len(norm_guess) >= 4 and norm_guess in NORMALIZED_FLAG:
+        return jsonify({"correct": False, "message": "✅ You found a correct piece! Proceed and find the rest."})
+        
+    # Check if they are guessing decoys
+    if len(norm_guess) >= 5 and (norm_guess in normalize(DECOY_1) or norm_guess in normalize(DECOY_2)):
+        return jsonify({"correct": False, "message": "⚠️ That looks like a decoy. Don't be fooled!"})
+
+    return jsonify({"correct": False, "message": "❌ Not quite. Keep trying!"})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
